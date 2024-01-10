@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace Crypt {
-    internal class Program {
+    public class Program {
 
         public class Options {
             [Option('e', "encrypt", HelpText = "Encrypt the file")]
@@ -34,19 +34,19 @@ namespace Crypt {
         static void Main(string[] args) {
             try {
                 Parser.Default.ParseArguments<Options>(args).WithParsed(options => RunOptions(options));
-            } catch(Exception exc) {
+            } catch (Exception exc) {
                 Console.WriteLine(exc.Message);
             }
         }
 
         private static void RunOptions(Options options) {
-            if(options.Encrypt && options.Symmetric) {
+            if (options.Encrypt && options.Symmetric) {
                 EncryptWithSymmetricKey(options.FilePath, options.Key);
-            } else if(options.Encrypt && options.Asymmetric) {
+            } else if (options.Encrypt && options.Asymmetric) {
                 EncryptWithAsymmetricKey(options.FilePath, options.PublicKeyPath);
-            } else if(options.Decrypt && options.Symmetric) {
+            } else if (options.Decrypt && options.Symmetric) {
                 DecryptWithSymmetricKey(options.FilePath, options.Key);
-            } else if(options.Decrypt && options.Asymmetric) {
+            } else if (options.Decrypt && options.Asymmetric) {
                 DecryptWithAsymmetricKey(options.FilePath, options.PrivateKeyPath);
             } else {
                 Console.WriteLine("Invalid options provided.");
@@ -54,65 +54,82 @@ namespace Crypt {
         }
 
         #region AES
-        static void EncryptWithSymmetricKey(string filePath, string password) {
-            string plainText = File.ReadAllText(filePath);
-            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-            using(AesManaged aes = new AesManaged()) {
-                aes.GenerateIV();
-                aes.GenerateKey();
-                using(RijndaelManaged rijndael = new RijndaelManaged()) {
-                    rijndael.Mode = CipherMode.ECB;
-                    rijndael.Padding = PaddingMode.PKCS7;
-                    rijndael.BlockSize = 128;
-                    using(ICryptoTransform encryptor = rijndael.CreateEncryptor(aes.Key, aes.IV)) {
-                        byte[] plainTextBytes = Encoding.UTF8.GetBytes(plainText);
-                        byte[] encryptedBytes = encryptor.TransformFinalBlock(plainTextBytes, 0, plainTextBytes.Length);
-                        File.WriteAllBytes(filePath + ".crypt", encryptedBytes);
+        public static void EncryptWithSymmetricKey(string filePath, string password) {
+            using (AesManaged aesAlg = new AesManaged()) {
+                byte[] key = GenerateKey(password, aesAlg.KeySize);
+                byte[] iv = aesAlg.IV;
+                using (FileStream fsOutput = new FileStream(filePath + ".crypt", FileMode.Create)) {
+                    fsOutput.Write(iv, 0, iv.Length);
+                    using (CryptoStream csEncrypt = new CryptoStream(fsOutput, aesAlg.CreateEncryptor(key, iv), CryptoStreamMode.Write)) {
+                        using (FileStream fsInput = new FileStream(filePath, FileMode.Open)) {
+                            byte[] buffer = new byte[4096];
+                            int bytesRead;
+                            while ((bytesRead = fsInput.Read(buffer, 0, buffer.Length)) > 0) {
+                                csEncrypt.Write(buffer, 0, bytesRead);
+                            }
+                        }
                     }
                 }
             }
         }
 
-        static void DecryptWithSymmetricKey(string filePath, string password) {
-            byte[] cipherText = File.ReadAllBytes(filePath);
-            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-            using(AesManaged aes = new AesManaged()) {
-                aes.GenerateIV();
-                aes.GenerateKey();
-                using(RijndaelManaged rijndael = new RijndaelManaged()) {
-                    rijndael.Mode = CipherMode.ECB;
-                    rijndael.Padding = PaddingMode.PKCS7;
-                    rijndael.BlockSize = 128;
-                    using(ICryptoTransform decryptor = rijndael.CreateDecryptor(aes.Key, aes.IV)) {
-                        byte[] decryptedBytes = decryptor.TransformFinalBlock(cipherText, 0, cipherText.Length);
-                        string decrypted = Encoding.UTF8.GetString(decryptedBytes);
-                        File.WriteAllText(filePath.Replace(".crypt", ""), decrypted);
+        public static void DecryptWithSymmetricKey(string filePath, string password) {
+            using (AesManaged aesAlg = new AesManaged()) {
+                byte[] key = GenerateKey(password, aesAlg.KeySize);
+                using (FileStream fsInput = new FileStream(filePath, FileMode.Open)) {
+                    byte[] iv = new byte[aesAlg.IV.Length];
+                    fsInput.Read(iv, 0, iv.Length);
+                    using (CryptoStream csDecrypt = new CryptoStream(fsInput, aesAlg.CreateDecryptor(key, iv), CryptoStreamMode.Read)) {
+                        using (FileStream fsOutput = new FileStream(filePath.Replace(".crypt", ""), FileMode.Create)) {
+                            byte[] buffer = new byte[4096];
+                            int bytesRead;
+
+                            while ((bytesRead = csDecrypt.Read(buffer, 0, buffer.Length)) > 0) {
+                                fsOutput.Write(buffer, 0, bytesRead);
+                            }
+                        }
                     }
                 }
+            }
+        }
+
+        private static byte[] GenerateKey(string password, int keySize) {
+            using (var deriveBytes = new Rfc2898DeriveBytes(password, Encoding.UTF8.GetBytes("S@lt"), 10000)) {
+                return deriveBytes.GetBytes(keySize / 8);
             }
         }
         #endregion
 
         #region RSA
-        private static void EncryptWithAsymmetricKey(string filePath, string publicKeyPath) {
+        public static void EncryptWithAsymmetricKey(string filePath, string publicKeyPath) {
             string plainText = File.ReadAllText(filePath);
             byte[] plainTextBytes = Encoding.UTF8.GetBytes(plainText);
-            using(var rsa = new RSACryptoServiceProvider()) {
-                rsa.FromXmlString(File.ReadAllText(publicKeyPath));
-                byte[] encryptedBytes = rsa.Encrypt(plainTextBytes, false);
+
+            using (var rsa = new RSACryptoServiceProvider()) {
+                string publicKeyPEM = File.ReadAllText(publicKeyPath);
+                rsa.ImportFromPem(publicKeyPEM);
+
+                byte[] encryptedBytes = rsa.Encrypt(plainTextBytes, RSAEncryptionPadding.Pkcs1);
+
                 File.WriteAllBytes(filePath + ".crypt", encryptedBytes);
             }
         }
 
-        private static void DecryptWithAsymmetricKey(string filePath, string privateKeyPath) {
+
+        public static void DecryptWithAsymmetricKey(string filePath, string privateKeyPath) {
             byte[] cipherText = File.ReadAllBytes(filePath);
-            using(var rsa = new RSACryptoServiceProvider()) {
-                rsa.FromXmlString(File.ReadAllText(privateKeyPath));
+
+            using (var rsa = new RSACryptoServiceProvider()) {
+                string privateKeyPEM = File.ReadAllText(privateKeyPath);
+                rsa.ImportFromPem(privateKeyPEM);
+
                 byte[] decryptedBytes = rsa.Decrypt(cipherText, false);
                 string decrypted = Encoding.UTF8.GetString(decryptedBytes);
+
                 File.WriteAllText(filePath.Replace(".crypt", ""), decrypted);
             }
         }
+
         #endregion
     }
 }

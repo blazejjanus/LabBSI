@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34309.116
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hash", "Hash\Hash.csproj", "{7B626651-58B5-4B82-B2FB-060FA49B91E7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hash", "Hash\Hash.csproj", "{7B626651-58B5-4B82-B2FB-060FA49B91E7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Crypt", "Crypt\Crypt.csproj", "{B087E2D0-4122-4388-913C-32339186AEF3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Crypt", "Crypt\Crypt.csproj", "{B087E2D0-4122-4388-913C-32339186AEF3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{5EF9C5D9-8E8F-4621-A009-60217B74763C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{B087E2D0-4122-4388-913C-32339186AEF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B087E2D0-4122-4388-913C-32339186AEF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B087E2D0-4122-4388-913C-32339186AEF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5EF9C5D9-8E8F-4621-A009-60217B74763C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5EF9C5D9-8E8F-4621-A009-60217B74763C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5EF9C5D9-8E8F-4621-A009-60217B74763C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5EF9C5D9-8E8F-4621-A009-60217B74763C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
